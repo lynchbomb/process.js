@@ -37,7 +37,7 @@ export default class Process {
   // will schedule duplicate tasks if instantiated to do so will NOT deferWork
   public scheduleWorkOnce(queueID: string, scope: any, fn: Function, fnArgs?: any[]) {
     if (this.queuesObj[queueID].queueID) {
-      this.queuesObj[queueID].checkForExistingWork({scope, fn, fnArgs});
+      this.queuesObj[queueID]._checkForExistingWork({scope, fn, fnArgs});
     }else {
       throw new QueueError('Queue ID not found. Please push work to a valid exisiting queue.');
     }
@@ -55,9 +55,18 @@ export default class Process {
     }else {
       this.scheduleWork(Object.keys(this.queuesObj)[0], null, fn);
     }
+
     this._setCurrentQueue();
     this._setActiveQueue();
     this._flushActiveQueue();
+  }
+
+  // the queue as a POJO
+  private _initQueues(_queueIDArray: string[]) {
+    let scope = this;
+    _queueIDArray.forEach(function(queueID) {
+      scope.queuesObj[queueID] = new Queue(queueID);
+    });
   }
 
   // get the number of total queues
@@ -67,10 +76,12 @@ export default class Process {
   private _setCurrentQueue() {
     let i = 0;
     let ii = Object.keys(this.queuesObj).length - 1;
+    let _queueId: string | null = null;
 
     while (i <= ii) {
-      if (this.queuesObj[i].getQueueLength() >= 1) {
-        this.CURRENT_QUEUE = this.queuesObj[i];
+      _queueId = Object.keys(this.queuesObj)[i];
+      if (this.queuesObj[_queueId].getQueueLength()) {
+        this.CURRENT_QUEUE = this.queuesObj[_queueId];
       }
       i++;
     }
@@ -95,22 +106,9 @@ export default class Process {
   private _flushActiveQueue() {
     if (this.ACTIVE_QUEUE) {
       this.ACTIVE_QUEUE.flush();
+
+      // kick it all off again
       // this.run();
     }
-  }
-
-  // fully tested
-  // private _initQueues(_queueIDArray: string[]) {
-  //   let scope = this;
-  //   _queueIDArray.forEach(function(queueID) {
-  //     scope.queues.push(new Queue(queueID));
-  //   });
-  // }
-
-  private _initQueues(_queueIDArray: string[]) {
-    let scope = this;
-    _queueIDArray.forEach(function(queueID) {
-      scope.queuesObj[queueID] = new Queue(queueID);
-    });
   }
 };

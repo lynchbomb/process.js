@@ -2,8 +2,6 @@ import Process from 'process';
 
 QUnit.module('tests/basic');
 
-
-
 QUnit.test('can init new queues', function(assert) {
   assert.expect(4);
   let process = new Process(['q1', 'q2', 'q3']);
@@ -24,10 +22,11 @@ QUnit.test('can push work to the queue', function(assert) {
   let process = new Process(['q1']);
   process.scheduleWork('q1', null, () => {});
   process.scheduleWork('q1', null, () => {});
+  process.scheduleWork('q1', null, () => {}, [1, 2]);
 
   let itemsLength = process.queuesObj[process.firstQueueID].getQueueLength();
 
-  assert.equal(2, itemsLength, 'Should be the same');
+  assert.equal(3, itemsLength, 'Should be the same');
 });
 
 
@@ -42,7 +41,6 @@ QUnit.test('can flush work to the queue with arguments', function(assert) {
 
   process.scheduleWork('q1', null, addInt, [1, 2]);
   process.run();
-
   assert.equal(baseInt, 3, 'Should be the same');
 });
 
@@ -63,12 +61,12 @@ QUnit.test('scheduleWork can stack with duplicates', function(assert) {
   process.scheduleWork('q1', null, task1);
   process.scheduleWork('q1', null, task1);
   process.run();
-  assert.deepEqual(tasks, { one: { count: 3 }});
+  assert.deepEqual(tasks, { one: { count: 3 }}, 'Should be the same');
 });
 
 
 
-QUnit.test('scheduleWorkOnce will stack duplicates with most recent', function(assert) {
+QUnit.test('scheduleWorkOnce will stack duplicates and only add the most recent to the queue', function(assert) {
   assert.expect(1);
   let process = new Process(['q1']);
   let tasks = {
@@ -83,7 +81,7 @@ QUnit.test('scheduleWorkOnce will stack duplicates with most recent', function(a
   process.scheduleWorkOnce('q1', null, task1);
   process.scheduleWorkOnce('q1', null, task1);
   process.run();
-  assert.deepEqual(tasks, { one: { count: 1 }});
+  assert.deepEqual(tasks, { one: { count: 1 }}, 'Should be the same');
 });
 
 
@@ -101,7 +99,7 @@ QUnit.test('schedule work on different queues', function(assert) {
 
   process.scheduleWork('q1', null, task1);
   process.run();
-  assert.deepEqual(tasks, { one: { count: 1 }});
+  assert.deepEqual(tasks, { one: { count: 1 }}, 'Should be the same');
 });
 
 
@@ -113,15 +111,45 @@ QUnit.test('can pass work into run', function(assert) {
   function updateName() {
     return person.name;
   }
-  function setName(name) {
+  function setName1(name) {
     person.name = name;
     process.scheduleWorkOnce('q1', null, updateName);
   }
   process.run(function() {
-    setName('Kris');
-    setName('Tom');
-    setName('Yehuda');
+    setName1('Kris');
+    setName1('Tom');
+    setName1('Yehuda');
   });
 
   assert.equal(person.name, 'Yehuda', 'Should be the same');
+});
+
+
+
+QUnit.test('work is flushed in the proper queue priority order of first to last', function(assert) {
+  assert.expect(1);
+  let process = new Process(['q1', 'q2', 'q3']);
+  let person = { name: '' };
+  function updateName() {
+    return person.name;
+  }
+  function setName1(name) {
+    person.name = name;
+    process.scheduleWorkOnce('q1', null, updateName);
+  }
+  function setName2(name) {
+    person.name = name;
+    process.scheduleWorkOnce('q2', null, updateName);
+  }
+  function setName3(name) {
+    person.name = name;
+    process.scheduleWorkOnce('q3', null, updateName);
+  }
+  process.run(function() {
+    setName3('Yehuda');
+    setName2('Tom');
+    setName1('Kris');
+  });
+
+  assert.equal(person.name, 'Kris', 'Should be the same');
 });
