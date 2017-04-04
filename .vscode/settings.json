@@ -1,0 +1,12 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    ".vscode/chrome": true,
+    "tmp": true,
+    "config": true
+  },
+  "editor.renderWhitespace": "boundary",
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2
+}
